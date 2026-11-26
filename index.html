@@ -8,7 +8,7 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            font-family: 'Segoe UI', system-ui, sans-serif;
             background: linear-gradient(135deg, #4A90E2 0%, #50E3C2 100%);
             min-height: 100vh;
             display: flex;
@@ -40,7 +40,7 @@
         input {
             width: 100%; padding: 12px 16px;
             border: 2px solid #E2E8F0; border-radius: 8px;
-            font-size: 15px; transition: border-color 0.2s;
+            font-size: 15px;
         }
         input:focus { outline: none; border-color: #4A90E2; }
         button {
@@ -55,15 +55,8 @@
             margin-top: 15px; padding: 12px; border-radius: 8px;
             font-size: 14px; display: none;
         }
-        .message.error { background: #FED7D7; color: #C53030; border: 1px solid #FEB2B2; }
-        .message.success { background: #C6F6D5; color: #22543D; border: 1px solid #9AE6B4; }
+        .message.error { background: #FED7D7; color: #C53030; }
         .message.show { display: block; }
-        .status-box {
-            margin-top: 15px; padding: 10px;
-            background: #EDF2F7; border-radius: 8px;
-            font-size: 12px; color: #4A5568;
-            font-family: monospace; word-break: break-all;
-        }
         .footer { text-align: center; margin-top: 20px; font-size: 12px; color: #718096; }
     </style>
 </head>
@@ -86,7 +79,6 @@
             </div>
             <button type="submit" id="submitBtn">Iniciar sesión</button>
             <div id="message" class="message"></div>
-            <div id="statusBox" class="status-box" style="display:none;"></div>
         </form>
         
         <div class="footer">© 2026 Kinetio Studio · Todos los derechos reservados</div>
@@ -96,9 +88,8 @@
         (function() {
             'use strict';
             
-            // Verificar que Supabase cargó
             if (typeof window.supabase === 'undefined') {
-                alert('Error: No se pudo cargar Supabase. Revisa tu conexión.');
+                alert('Error: No se pudo cargar Supabase.');
                 return;
             }
             
@@ -109,19 +100,14 @@
             const form = document.getElementById('loginForm');
             const message = document.getElementById('message');
             const submitBtn = document.getElementById('submitBtn');
-            const statusBox = document.getElementById('statusBox');
 
-            function showMessage(text, type) {
-                message.className = 'message ' + type + ' show';
-                message.textContent = text;
-            }
-
-            function showStatus(text) {
-                statusBox.style.display = 'block';
-                statusBox.textContent = text;
-                console.log('[Kinetio]', text);
-            }
-
+            // Verificar si ya hay sesión activa
+            supabaseClient.auth.getSession().then(({ data: { session } }) => {
+                if (session) {
+                    window.location.href = 'dashboard.html';
+                }
+            });
+            
             form.addEventListener('submit', async function(e) {
                 e.preventDefault();
                 
@@ -132,7 +118,6 @@
                 message.style.display = 'none';
                 submitBtn.disabled = true;
                 submitBtn.textContent = 'Conectando...';
-                showStatus('1. Enviando credenciales a Supabase...');
                 
                 try {
                     const { data, error } = await supabaseClient.auth.signInWithPassword({
@@ -142,9 +127,7 @@
                     
                     if (error) throw error;
                     
-                    showStatus('2. Login exitoso. UID: ' + data.user.id);
-                    submitBtn.textContent = 'Obteniendo perfil...';
-                    
+                    // Verificar perfil
                     const { data: profile, error: profileError } = await supabaseClient
                         .from('profiles')
                         .select('*')
@@ -153,15 +136,15 @@
                     
                     if (profileError) throw profileError;
                     
-                    showStatus('3. Perfil: ' + profile.nombre_completo + ' (' + profile.rol + ')');
-                    showMessage('✅ ¡Bienvenido ' + profile.nombre_completo + '! Rol: ' + profile.rol, 'success');
-                    submitBtn.textContent = '✓ Sesión iniciada';
-                    submitBtn.disabled = false;
+                    // Guardar sesión en localStorage
+                    localStorage.setItem('kinetio_user', JSON.stringify(profile));
+                    
+                    // Redirigir al dashboard
+                    window.location.href = 'dashboard.html';
                     
                 } catch (error) {
-                    console.error('Error:', error);
-                    showStatus('ERROR: ' + (error.message || error.toString()));
-                    showMessage('❌ ' + (error.message || 'Error desconocido'), 'error');
+                    message.className = 'message error show';
+                    message.textContent = '❌ ' + (error.message || 'Error desconocido');
                     submitBtn.disabled = false;
                     submitBtn.textContent = 'Iniciar sesión';
                 }
