@@ -354,4 +354,633 @@
             font-weight: 600;
         }
         .checkbox-group {
-            display:
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 8px;
+        }
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border: 1px solid #E2E8F0;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .checkbox-item:hover { background: #F7FAFC; }
+        .checkbox-item input { cursor: pointer; }
+        .hint {
+            font-size: 12px;
+            color: #718096;
+            margin-top: 5px;
+        }
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .main { margin-left: 0; }
+            .calendar-day { min-height: 60px; }
+            .form-row { grid-template-columns: 1fr; }
+            .calendar-header { flex-direction: column; align-items: flex-start; }
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-logo">
+            <div class="sidebar-logo-icon">K</div>
+            <div class="sidebar-logo-text">Kinetio Core</div>
+        </div>
+        <ul class="sidebar-menu">
+            <li onclick="window.location.href='dashboard.html'">📊 Dashboard</li>
+            <li onclick="window.location.href='clientes.html'">🏢 Clientes</li>
+            <li onclick="window.location.href='pipeline.html'">🔄 Pipeline</li>
+            <li class="active" onclick="window.location.href='calendario.html'">📅 Calendario</li>
+            <li onclick="window.location.href='usuarios.html'">👥 Usuarios</li>
+            <li onclick="window.location.href='configuracion.html'">⚙️ Configuración</li>
+        </ul>
+    </div>
+    
+    <div class="main">
+        <div class="topbar">
+            <h1>Calendario Colaborativo</h1>
+            <div class="user-info">
+                <div class="user-avatar" id="userAvatar">F</div>
+                <div>
+                    <div style="font-weight: 600; font-size: 14px;" id="userName">Cargando...</div>
+                    <div style="font-size: 11px; color: #718096;" id="userRole">-</div>
+                </div>
+                <button class="logout-btn" onclick="logout()">Salir</button>
+            </div>
+        </div>
+        
+        <div class="calendar-container">
+            <div class="calendar-header">
+                <h2 id="calendarTitle">📅 Noviembre 2026</h2>
+                <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                    <div class="view-buttons">
+                        <button class="view-btn" data-view="dia">Día</button>
+                        <button class="view-btn" data-view="semana">Semana</button>
+                        <button class="view-btn active" data-view="mes">Mes</button>
+                        <button class="view-btn" data-view="año">Año</button>
+                        <button class="view-btn" data-view="lista">Lista</button>
+                    </div>
+                    <div class="nav-buttons">
+                        <button class="nav-btn" onclick="changeMonth(-1)">←</button>
+                        <button class="nav-btn" onclick="goToToday()">Hoy</button>
+                        <button class="nav-btn" onclick="changeMonth(1)">→</button>
+                    </div>
+                    <button class="btn-primary" onclick="openModal()">+ Nuevo Evento</button>
+                </div>
+            </div>
+            
+            <!-- Stats bar -->
+            <div class="stats-bar">
+                <div class="stat-item"><span class="stat-dot programados"></span> <span id="statProgramados">0</span> programados</div>
+                <div class="stat-item"><span class="stat-dot cancelados"></span> <span id="statCancelados">0</span> cancelados</div>
+                <div class="stat-item"><span class="stat-dot completados"></span> <span id="statCompletados">0</span> completados</div>
+                <div class="stat-item"><strong><span id="statTotal">0</span> total</strong></div>
+            </div>
+            
+            <!-- Calendar grid (Mes) -->
+            <div class="calendar-grid-view" id="calendarGridView">
+                <div class="calendar-grid" id="calendarGrid"></div>
+            </div>
+            
+            <!-- List view -->
+            <div class="list-view" id="listView"></div>
+            
+            <!-- Placeholder views -->
+            <div class="placeholder-view" id="placeholderView">
+                <div class="icon">🚧</div>
+                <h3>Vista en desarrollo</h3>
+                <p>Esta vista estará disponible en la próxima actualización. Por ahora usa <strong>Mes</strong> o <strong>Lista</strong>.</p>
+                <button class="btn-primary" style="margin-top:20px;" onclick="switchView('mes')">Volver a Mes</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal Evento (crear/editar) -->
+    <div id="modalEvento" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Nuevo Evento</h3>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <form id="formEvento">
+                <div class="form-group">
+                    <label>Título *</label>
+                    <input type="text" id="titulo" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Fecha y hora inicio *</label>
+                        <input type="datetime-local" id="fechaInicio" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha y hora fin *</label>
+                        <input type="datetime-local" id="fechaFin" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Tipo</label>
+                        <select id="tipo">
+                            <option value="reunion">🤝 Reunión</option>
+                            <option value="llamada">📞 Llamada</option>
+                            <option value="tarea">✅ Tarea</option>
+                            <option value="evento">🎉 Evento</option>
+                            <option value="seguimiento">📊 Seguimiento</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Estado</label>
+                        <select id="estado">
+                            <option value="programado">📅 Programado</option>
+                            <option value="completado">✅ Completado</option>
+                            <option value="cancelado">❌ Cancelado</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Recordatorio</label>
+                        <select id="recordatorio">
+                            <option value="5">5 minutos antes</option>
+                            <option value="10">10 minutos antes</option>
+                            <option value="15">15 minutos antes</option>
+                            <option value="30" selected>30 minutos antes</option>
+                            <option value="60">1 hora antes</option>
+                            <option value="0">Sin recordatorio</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Color</label>
+                        <select id="color">
+                            <option value="#4A90E2">🔵 Azul</option>
+                            <option value="#50E3C2">🟢 Turquesa</option>
+                            <option value="#DD6B20">🟠 Naranja</option>
+                            <option value="#805AD5">🟣 Morado</option>
+                            <option value="#38A169">🟢 Verde</option>
+                            <option value="#E53E3E">🔴 Rojo</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Descripción</label>
+                    <textarea id="descripcion" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Link de reunión (Zoom, Meet, Teams)</label>
+                    <input type="url" id="linkReunion" placeholder="https://meet.google.com/...">
+                </div>
+                <div class="form-group">
+                    <label>Participantes internos (compañeros del equipo)</label>
+                    <div class="checkbox-group" id="participantesInternos">
+                        <div style="color:#718096; font-size:13px;">Cargando usuarios...</div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Participantes externos (correos de otras empresas)</label>
+                    <input type="text" id="participantesExternos" placeholder="juan@empresa.com, maria@otra.com">
+                    <div class="hint">Separa varios correos con coma</div>
+                </div>
+                <div class="modal-footer">
+                    <div>
+                        <button type="button" class="btn-danger" id="btnEliminar" style="display:none;" onclick="eliminarEvento()">🗑️ Eliminar</button>
+                    </div>
+                    <div class="modal-footer-right">
+                        <button type="button" class="btn-secondary" onclick="closeModal()">Cancelar</button>
+                        <button type="submit" class="btn-primary" id="btnGuardar">Guardar Evento</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            'use strict';
+            
+            if (typeof window.supabase === 'undefined') {
+                alert('Error: No se pudo cargar Supabase.');
+                window.location.href = 'index.html';
+                return;
+            }
+            
+            const SUPABASE_URL = 'https://fipcubgwvqabwpplpkvx.supabase.co';
+            const SUPABASE_KEY = 'sb_publishable_zaAj4M7TFUD2eTvrBl9jRA_nlRHjxCp';
+            const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            
+            let currentTenantId = null;
+            let currentUserId = null;
+            let currentDate = new Date();
+            let currentView = 'mes';
+            let allEvents = [];
+            let allUsers = [];
+            let editingEventId = null;
+            
+            const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+            const mesesCortos = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+            const dias = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+            const coloresDefault = {
+                reunion: '#4A90E2',
+                llamada: '#50E3C2',
+                tarea: '#DD6B20',
+                evento: '#805AD5',
+                seguimiento: '#38A169'
+            };
+            
+            supabaseClient.auth.getSession().then(async ({ data: { session } }) => {
+                if (!session) {
+                    window.location.href = 'index.html';
+                } else {
+                    await loadUserProfile();
+                    await loadUsers();
+                    await loadEvents();
+                    render();
+                }
+            });
+            
+            async function loadUserProfile() {
+                try {
+                    const { data: { user } } = await supabaseClient.auth.getUser();
+                    currentUserId = user.id;
+                    const { data: profile } = await supabaseClient
+                        .from('profiles')
+                        .select('*')
+                        .eq('id', user.id)
+                        .single();
+                    
+                    if (profile) {
+                        document.getElementById('userName').textContent = profile.nombre_completo;
+                        document.getElementById('userRole').textContent = profile.rol;
+                        document.getElementById('userAvatar').textContent = profile.nombre_completo.charAt(0).toUpperCase();
+                        currentTenantId = profile.id_tenant;
+                    }
+                } catch (error) {
+                    console.error('Error cargando perfil:', error);
+                }
+            }
+            
+            async function loadUsers() {
+                try {
+                    const { data: users } = await supabaseClient
+                        .from('profiles')
+                        .select('id, nombre_completo, email')
+                        .eq('id_tenant', currentTenantId);
+                    
+                    allUsers = users || [];
+                    renderParticipantesInternos();
+                } catch (error) {
+                    console.error('Error cargando usuarios:', error);
+                }
+            }
+            
+            function renderParticipantesInternos() {
+                const container = document.getElementById('participantesInternos');
+                if (allUsers.length === 0) {
+                    container.innerHTML = '<div style="color:#718096; font-size:13px;">No hay otros usuarios en tu equipo</div>';
+                    return;
+                }
+                container.innerHTML = allUsers.map(u => 
+                    '<label class="checkbox-item"><input type="checkbox" value="' + u.id + '"> ' + u.nombre_completo + '</label>'
+                ).join('');
+            }
+            
+            async function loadEvents() {
+                try {
+                    const inicioMes = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+                    const finMes = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59);
+                    
+                    const { data: events, error } = await supabaseClient
+                        .from('events')
+                        .select('*')
+                        .eq('id_tenant', currentTenantId)
+                        .gte('fecha_inicio', inicioMes.toISOString())
+                        .lte('fecha_inicio', finMes.toISOString())
+                        .order('fecha_inicio', { ascending: true });
+                    
+                    if (error) throw error;
+                    allEvents = events || [];
+                    updateStats();
+                } catch (error) {
+                    console.error('Error cargando eventos:', error);
+                }
+            }
+            
+            function updateStats() {
+                const programados = allEvents.filter(e => e.estado === 'programado').length;
+                const completados = allEvents.filter(e => e.estado === 'completado').length;
+                const cancelados = allEvents.filter(e => e.estado === 'cancelado').length;
+                
+                document.getElementById('statProgramados').textContent = programados;
+                document.getElementById('statCompletados').textContent = completados;
+                document.getElementById('statCancelados').textContent = cancelados;
+                document.getElementById('statTotal').textContent = allEvents.length;
+            }
+            
+            function render() {
+                const year = currentDate.getFullYear();
+                const month = currentDate.getMonth();
+                document.getElementById('calendarTitle').textContent = '📅 ' + meses[month] + ' ' + year;
+                
+                // Ocultar todas las vistas
+                document.getElementById('calendarGridView').classList.add('hidden');
+                document.getElementById('listView').classList.remove('active');
+                document.getElementById('placeholderView').classList.remove('active');
+                
+                if (currentView === 'mes') {
+                    document.getElementById('calendarGridView').classList.remove('hidden');
+                    renderCalendarGrid();
+                } else if (currentView === 'lista') {
+                    document.getElementById('listView').classList.add('active');
+                    renderListView();
+                } else {
+                    document.getElementById('placeholderView').classList.add('active');
+                }
+            }
+            
+            function renderCalendarGrid() {
+                const year = currentDate.getFullYear();
+                const month = currentDate.getMonth();
+                const grid = document.getElementById('calendarGrid');
+                grid.innerHTML = '';
+                
+                dias.forEach(d => {
+                    const header = document.createElement('div');
+                    header.className = 'calendar-day-header';
+                    header.textContent = d;
+                    grid.appendChild(header);
+                });
+                
+                const primerDia = new Date(year, month, 1);
+                const ultimoDia = new Date(year, month + 1, 0);
+                const diasEnMes = ultimoDia.getDate();
+                
+                let diaInicio = primerDia.getDay() - 1;
+                if (diaInicio < 0) diaInicio = 6;
+                
+                const diasMesAnterior = new Date(year, month, 0).getDate();
+                for (let i = diaInicio - 1; i >= 0; i--) {
+                    const dayDiv = document.createElement('div');
+                    dayDiv.className = 'calendar-day other-month';
+                    dayDiv.innerHTML = '<div class="day-number">' + (diasMesAnterior - i) + '</div>';
+                    grid.appendChild(dayDiv);
+                }
+                
+                const hoy = new Date();
+                for (let d = 1; d <= diasEnMes; d++) {
+                    const dayDiv = document.createElement('div');
+                    const esHoy = (hoy.getDate() === d && hoy.getMonth() === month && hoy.getFullYear() === year);
+                    dayDiv.className = 'calendar-day' + (esHoy ? ' today' : '');
+                    
+                    let html = '<div class="day-number' + (esHoy ? ' today' : '') + '">' + d + '</div>';
+                    
+                    const eventosDelDia = allEvents.filter(e => {
+                        const fechaEvento = new Date(e.fecha_inicio);
+                        return fechaEvento.getDate() === d && fechaEvento.getMonth() === month && fechaEvento.getFullYear() === year;
+                    });
+                    
+                    eventosDelDia.forEach(e => {
+                        const color = e.color || coloresDefault[e.tipo] || '#4A90E2';
+                        const opacity = e.estado === 'cancelado' ? '0.5' : '1';
+                        const textDecoration = e.estado === 'cancelado' ? 'line-through' : 'none';
+                        html += '<div class="event-chip" style="background:' + color + '; opacity:' + opacity + '; text-decoration:' + textDecoration + ';" onclick="event.stopPropagation(); openModalEdit(\'' + e.id + '\')" title="' + e.titulo + '">' + e.titulo + '</div>';
+                    });
+                    
+                    dayDiv.innerHTML = html;
+                    dayDiv.onclick = function() {
+                        openModal(d);
+                    };
+                    grid.appendChild(dayDiv);
+                }
+                
+                const totalCeldas = diaInicio + diasEnMes;
+                const celdasRestantes = (7 - (totalCeldas % 7)) % 7;
+                for (let i = 1; i <= celdasRestantes; i++) {
+                    const dayDiv = document.createElement('div');
+                    dayDiv.className = 'calendar-day other-month';
+                    dayDiv.innerHTML = '<div class="day-number">' + i + '</div>';
+                    grid.appendChild(dayDiv);
+                }
+            }
+            
+            function renderListView() {
+                const container = document.getElementById('listView');
+                
+                if (allEvents.length === 0) {
+                    container.innerHTML = '<div style="text-align:center; padding:40px; color:#718096;">No hay eventos este mes</div>';
+                    return;
+                }
+                
+                let html = '';
+                allEvents.forEach(e => {
+                    const fecha = new Date(e.fecha_inicio);
+                    const color = e.color || coloresDefault[e.tipo] || '#4A90E2';
+                    const opacity = e.estado === 'cancelado' ? '0.5' : '1';
+                    const textDecoration = e.estado === 'cancelado' ? 'line-through' : 'none';
+                    
+                    html += '<div class="event-list-item" onclick="openModalEdit(\'' + e.id + '\')" style="opacity:' + opacity + ';">';
+                    html += '<div class="event-list-date"><div class="day">' + fecha.getDate() + '</div><div class="month">' + mesesCortos[fecha.getMonth()] + '</div></div>';
+                    html += '<div class="event-list-info"><div class="title" style="text-decoration:' + textDecoration + ';">' + e.titulo + '</div>';
+                    html += '<div class="meta">🕐 ' + fecha.toLocaleTimeString('es-PE', {hour: '2-digit', minute:'2-digit'}) + ' - ' + new Date(e.fecha_fin).toLocaleTimeString('es-PE', {hour: '2-digit', minute:'2-digit'});
+                    if (e.link_reunion) html += ' · 🔗 Link disponible';
+                    html += '</div></div>';
+                    html += '<div class="event-list-type" style="background:' + color + ';">' + e.tipo + '</div>';
+                    html += '</div>';
+                });
+                
+                container.innerHTML = html;
+            }
+            
+            window.changeMonth = function(delta) {
+                currentDate.setMonth(currentDate.getMonth() + delta);
+                loadEvents().then(render);
+            };
+            
+            window.goToToday = function() {
+                currentDate = new Date();
+                loadEvents().then(render);
+            };
+            
+            window.switchView = function(view) {
+                currentView = view;
+                document.querySelectorAll('.view-btn').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.view === view);
+                });
+                render();
+            };
+            
+            document.querySelectorAll('.view-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    switchView(this.dataset.view);
+                });
+            });
+            
+            window.openModal = function(dia) {
+                editingEventId = null;
+                document.getElementById('modalTitle').textContent = 'Nuevo Evento';
+                document.getElementById('btnGuardar').textContent = 'Guardar Evento';
+                document.getElementById('btnEliminar').style.display = 'none';
+                document.getElementById('formEvento').reset();
+                document.getElementById('estado').value = 'programado';
+                document.getElementById('recordatorio').value = '30';
+                document.getElementById('color').value = '#4A90E2';
+                
+                if (dia) {
+                    const year = currentDate.getFullYear();
+                    const month = currentDate.getMonth();
+                    const fechaStr = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(dia).padStart(2, '0');
+                    document.getElementById('fechaInicio').value = fechaStr + 'T09:00';
+                    document.getElementById('fechaFin').value = fechaStr + 'T10:00';
+                }
+                
+                document.getElementById('modalEvento').classList.add('show');
+            };
+            
+            window.openModalEdit = function(eventId) {
+                const event = allEvents.find(e => e.id === eventId);
+                if (!event) return;
+                
+                editingEventId = eventId;
+                document.getElementById('modalTitle').textContent = 'Editar Evento';
+                document.getElementById('btnGuardar').textContent = 'Actualizar Evento';
+                document.getElementById('btnEliminar').style.display = 'block';
+                
+                document.getElementById('titulo').value = event.titulo || '';
+                document.getElementById('descripcion').value = event.descripcion || '';
+                document.getElementById('tipo').value = event.tipo || 'reunion';
+                document.getElementById('estado').value = event.estado || 'programado';
+                document.getElementById('linkReunion').value = event.link_reunion || '';
+                document.getElementById('recordatorio').value = event.recordatorio_minutos || 30;
+                document.getElementById('color').value = event.color || '#4A90E2';
+                
+                const inicio = new Date(event.fecha_inicio);
+                const fin = new Date(event.fecha_fin);
+                const formatDateTime = (d) => {
+                    const year = d.getFullYear();
+                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                    const day = String(d.getDate()).padStart(2, '0');
+                    const hours = String(d.getHours()).padStart(2, '0');
+                    const minutes = String(d.getMinutes()).padStart(2, '0');
+                    return year + '-' + month + '-' + day + 'T' + hours + ':' + minutes;
+                };
+                document.getElementById('fechaInicio').value = formatDateTime(inicio);
+                document.getElementById('fechaFin').value = formatDateTime(fin);
+                
+                // Participantes internos
+                document.querySelectorAll('#participantesInternos input').forEach(cb => {
+                    cb.checked = (event.participantes_internos || []).includes(cb.value);
+                });
+                
+                // Participantes externos
+                document.getElementById('participantesExternos').value = (event.participantes_externos || []).join(', ');
+                
+                document.getElementById('modalEvento').classList.add('show');
+            };
+            
+            window.closeModal = function() {
+                document.getElementById('modalEvento').classList.remove('show');
+                editingEventId = null;
+            };
+            
+            document.getElementById('formEvento').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const participantesInternosCheckboxes = document.querySelectorAll('#participantesInternos input:checked');
+                const participantesInternos = Array.from(participantesInternosCheckboxes).map(cb => cb.value);
+                
+                const participantesExternosStr = document.getElementById('participantesExternos').value.trim();
+                const participantesExternos = participantesExternosStr ? participantesExternosStr.split(',').map(e => e.trim()).filter(e => e) : [];
+                
+                const data = {
+                    id_tenant: currentTenantId,
+                    titulo: document.getElementById('titulo').value.trim(),
+                    descripcion: document.getElementById('descripcion').value.trim(),
+                    tipo: document.getElementById('tipo').value,
+                    estado: document.getElementById('estado').value,
+                    fecha_inicio: new Date(document.getElementById('fechaInicio').value).toISOString(),
+                    fecha_fin: new Date(document.getElementById('fechaFin').value).toISOString(),
+                    link_reunion: document.getElementById('linkReunion').value.trim(),
+                    recordatorio_minutos: parseInt(document.getElementById('recordatorio').value),
+                    color: document.getElementById('color').value,
+                    participantes_internos: participantesInternos,
+                    participantes_externos: participantesExternos,
+                    fecha_actualizacion: new Date().toISOString()
+                };
+                
+                try {
+                    let error;
+                    if (editingEventId) {
+                        // UPDATE
+                        const result = await supabaseClient
+                            .from('events')
+                            .update(data)
+                            .eq('id', editingEventId);
+                        error = result.error;
+                    } else {
+                        // INSERT
+                        data.id_creador = currentUserId;
+                        const result = await supabaseClient
+                            .from('events')
+                            .insert([data]);
+                        error = result.error;
+                    }
+                    
+                    if (error) throw error;
+                    
+                    closeModal();
+                    await loadEvents();
+                    render();
+                    alert('✅ Evento ' + (editingEventId ? 'actualizado' : 'creado') + ' exitosamente');
+                    
+                    // Mailto para participantes externos (solo en creación)
+                    if (!editingEventId && participantesExternos.length > 0) {
+                        const asunto = encodeURIComponent('Invitación: ' + data.titulo);
+                        const cuerpo = encodeURIComponent(
+                            'Hola,\n\nTe invito al siguiente evento:\n\n' +
+                            '📅 ' + data.titulo + '\n' +
+                            '🕐 ' + new Date(data.fecha_inicio).toLocaleString('es-PE') + ' - ' + new Date(data.fecha_fin).toLocaleTimeString('es-PE', {hour: '2-digit', minute:'2-digit'}) + '\n' +
+                            (data.link_reunion ? '🔗 Link: ' + data.link_reunion + '\n' : '') +
+                            (data.descripcion ? '\n' + data.descripcion + '\n' : '') +
+                            '\nSaludos,\n' + document.getElementById('userName').textContent + '\nKinetio Core'
+                        );
+                        window.open('mailto:' + participantesExternos.join(',') + '?subject=' + asunto + '&body=' + cuerpo, '_blank');
+                    }
+                } catch (error) {
+                    alert('❌ Error: ' + error.message);
+                }
+            });
+            
+            window.eliminarEvento = async function() {
+                if (!editingEventId) return;
+                
+                if (!confirm('¿Estás seguro de eliminar este evento? Esta acción no se puede deshacer.')) return;
+                
+                try {
+                    const { error } = await supabaseClient
+                        .from('events')
+                        .delete()
+                        .eq('id', editingEventId);
+                    
+                    if (error) throw error;
+                    
+                    closeModal();
+                    await loadEvents();
+                    render();
+                    alert('🗑️ Evento eliminado');
+                } catch (error) {
+                    alert('❌ Error al eliminar: ' + error.message);
+                }
+            };
+            
+            window.logout = async function() {
+                await supabaseClient.auth.signOut();
+                localStorage.removeItem('kinetio_user');
+                window.location.href = 'index.html';
+            };
+        })();
+    </script>
+</body>
+</html>
