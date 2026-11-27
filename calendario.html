@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kinetio Core - Calendario</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #F4F7F6;
+            color: #2D3748;
+        }
+        .sidebar {
+            width: 250px;
+            background: white;
+            border-right: 1px solid #E2E8F0;
+            padding: 20px;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+        }
+        .sidebar-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #E2E8F0;
+        }
+        .sidebar-logo-icon {
+            width: 40px; height: 40px;
+            background: linear-gradient(135deg, #4A90E2, #50E3C2);
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 800; font-size: 20px;
+        }
+        .sidebar-logo-text { font-weight: 700; color: #2D3748; }
+        .sidebar-menu { list-style: none; }
+        .sidebar-menu li {
+            padding: 12px 16px;
+            margin-bottom: 5px;
+            border-radius: 8px;
+            color: #718096;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .sidebar-menu li:hover { background: #EBF4FF; color: #4A90E2; }
+        .sidebar-menu li.active { background: #4A90E2; color: white; }
+        .main { margin-left: 250px; padding: 30px; }
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        .topbar h1 { font-size: 28px; color: #2D3748; }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .user-avatar {
+            width: 32px; height: 32px;
+            background: linear-gradient(135deg, #4A90E2, #50E3C2);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 700; font-size: 14px;
+        }
+        .logout-btn {
+            background: #E53E3E;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            margin-left: 10px;
+        }
+        .logout-btn:hover { background: #C53030; }
+        .calendar-container {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .calendar-header h2 { font-size: 20px; color: #2D3748; }
+        .nav-buttons { display: flex; gap: 10px; }
+        .nav-btn {
+            background: white;
+            border: 1px solid #E2E8F0;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .nav-btn:hover { background: #F7FAFC; }
+        .btn-primary {
+            background: linear-gradient(135deg, #4A90E2, #50E3C2);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3); }
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 1px;
+            background: #E2E8F0;
+            border: 1px solid #E2E8F0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .calendar-day-header {
+            background: #F7FAFC;
+            padding: 12px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            color: #718096;
+        }
+        .calendar-day {
+            background: white;
+            min-height: 100px;
+            padding: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .calendar-day:hover { background: #EBF4FF; }
+        .calendar-day.other-month { background: #F7FAFC; }
+        .calendar-day.today { background: #EBF8FF; }
+        .day-number {
+            font-size: 14px;
+            font-weight: 600;
+            color: #2D3748;
+            margin-bottom: 5px;
+        }
+        .day-number.today { color: #4A90E2; }
+        .event-chip {
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-bottom: 2px;
+            color: white;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal.show { display: flex; }
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            width: 100%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .modal-header h3 { font-size: 20px; color: #2D3748; }
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #718096;
+        }
+        .form-group { margin-bottom: 20px; }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2D3748;
+            font-size: 14px;
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid #E2E8F0;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #4A90E2;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .modal-footer {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+        .btn-secondary {
+            background: #E2E8F0;
+            color: #2D3748;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 8px;
+        }
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border: 1px solid #E2E8F0;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .checkbox-item:hover { background: #F7FAFC; }
+        .checkbox-item input { cursor: pointer; }
+        .hint {
+            font-size: 12px;
+            color: #718096;
+            margin-top: 5px;
+        }
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .main { margin-left: 0; }
+            .calendar-day { min-height: 60px; }
+            .form-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-logo">
+            <div class="sidebar-logo-icon">K</div>
+            <div class="sidebar-logo-text">Kinetio Core</div>
+        </div>
+        <ul class="sidebar-menu">
+            <li onclick="window.location.href='dashboard.html'">📊 Dashboard</li>
+            <li onclick="window.location.href='clientes.html'">🏢 Clientes</li>
+            <li onclick="window.location.href='pipeline.html'">🔄 Pipeline</li>
+            <li class="active" onclick="window.location.href='calendario.html'">📅 Calendario</li>
+            <li onclick="window.location.href='usuarios.html'">👥 Usuarios</li>
+            <li onclick="window.location.href='configuracion.html'">⚙️ Configuración</li>
+        </ul>
+    </div>
+    
+    <div class="main">
+        <div class="topbar">
+            <h1>Calendario Colaborativo</h1>
+            <div class="user-info">
+                <div class="user-avatar" id="userAvatar">F</div>
+                <div>
+                    <div style="font-weight: 600; font-size: 14px;" id="userName">Cargando...</div>
+                    <div style="font-size: 11px; color: #718096;" id="userRole">-</div>
+                </div>
+                <button class="logout-btn" onclick="logout()">Salir</button>
+            </div>
+        </div>
+        
+        <div class="calendar-container">
+            <div class="calendar-header">
+                <h2 id="calendarTitle">📅 Noviembre 2026</h2>
+                <div style="display:flex; gap:10px;">
+                    <div class="nav-buttons">
+                        <button class="nav-btn" onclick="changeMonth(-1)">← Anterior</button>
+                        <button class="nav-btn" onclick="goToToday()">Hoy</button>
+                        <button class="nav-btn" onclick="changeMonth(1)">Siguiente →</button>
+                    </div>
+                    <button class="btn-primary" onclick="openModal()">+ Nuevo Evento</button>
+                </div>
+            </div>
+            <div class="calendar-grid" id="calendarGrid"></div>
+        </div>
+    </div>
+    
+    <!-- Modal Nuevo Evento -->
+    <div id="modalEvento" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Nuevo Evento</h3>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <form id="formEvento">
+                <div class="form-group">
+                    <label>Título *</label>
+                    <input type="text" id="titulo" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Fecha y hora inicio *</label>
+                        <input type="datetime-local" id="fechaInicio" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha y hora fin *</label>
+                        <input type="datetime-local" id="fechaFin" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Tipo</label>
+                        <select id="tipo">
+                            <option value="reunion">🤝 Reunión</option>
+                            <option value="llamada">📞 Llamada</option>
+                            <option value="tarea">✅ Tarea</option>
+                            <option value="evento">🎉 Evento</option>
+                            <option value="seguimiento">📊 Seguimiento</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Recordatorio</label>
+                        <select id="recordatorio">
+                            <option value="5">5 minutos antes</option>
+                            <option value="10">10 minutos antes</option>
+                            <option value="15">15 minutos antes</option>
+                            <option value="30" selected>30 minutos antes</option>
+                            <option value="60">1 hora antes</option>
+                            <option value="0">Sin recordatorio</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Descripción</label>
+                    <textarea id="descripcion" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Link de reunión (Zoom, Meet, Teams)</label>
+                    <input type="url" id="linkReunion" placeholder="https://meet.google.com/...">
+                </div>
+                <div class="form-group">
+                    <label>Participantes internos (compañeros del equipo)</label>
+                    <div class="checkbox-group" id="participantesInternos">
+                        <div style="color:#718096; font-size:13px;">Cargando usuarios...</div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Participantes externos (correos de otras empresas)</label>
+                    <input type="text" id="participantesExternos" placeholder="juan@empresa.com, maria@otra.com">
+                    <div class="hint">Separa varios correos con coma</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" onclick="closeModal()">Cancelar</button>
+                    <button type="submit" class="btn-primary">Guardar Evento</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            'use strict';
+            
+            if (typeof window.supabase === 'undefined') {
+                alert('Error: No se pudo cargar Supabase.');
+                window.location.href = 'index.html';
+                return;
+            }
+            
+            const SUPABASE_URL = 'https://fipcubgwvqabwpplpkvx.supabase.co';
+            const SUPABASE_KEY = 'sb_publishable_zaAj4M7TFUD2eTvrBl9jRA_nlRHjxCp';
+            const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            
+            let currentTenantId = null;
+            let currentUserId = null;
+            let currentDate = new Date();
+            let allEvents = [];
+            let allUsers = [];
+            
+            const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+            const dias = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+            const colores = {
+                reunion: '#4A90E2',
+                llamada: '#50E3C2',
+                tarea: '#DD6B20',
+                evento: '#805AD5',
+                seguimiento: '#38A169'
+            };
+            
+            supabaseClient.auth.getSession().then(async ({ data: { session } }) => {
+                if (!session) {
+                    window.location.href = 'index.html';
+                } else {
+                    await loadUserProfile();
+                    await loadUsers();
+                    await loadEvents();
+                    renderCalendar();
+                }
+            });
+            
+            async function loadUserProfile() {
+                try {
+                    const { data: { user } } = await supabaseClient.auth.getUser();
+                    currentUserId = user.id;
+                    const { data: profile } = await supabaseClient
+                        .from('profiles')
+                        .select('*')
+                        .eq('id', user.id)
+                        .single();
+                    
+                    if (profile) {
+                        document.getElementById('userName').textContent = profile.nombre_completo;
+                        document.getElementById('userRole').textContent = profile.rol;
+                        document.getElementById('userAvatar').textContent = profile.nombre_completo.charAt(0).toUpperCase();
+                        currentTenantId = profile.id_tenant;
+                    }
+                } catch (error) {
+                    console.error('Error cargando perfil:', error);
+                }
+            }
+            
+            async function loadUsers() {
+                try {
+                    const { data: users } = await supabaseClient
+                        .from('profiles')
+                        .select('id, nombre_completo, email')
+                        .eq('id_tenant', currentTenantId);
+                    
+                    allUsers = users || [];
+                    renderParticipantesInternos();
+                } catch (error) {
+                    console.error('Error cargando usuarios:', error);
+                }
+            }
+            
+            function renderParticipantesInternos() {
+                const container = document.getElementById('participantesInternos');
+                if (allUsers.length === 0) {
+                    container.innerHTML = '<div style="color:#718096; font-size:13px;">No hay otros usuarios en tu equipo</div>';
+                    return;
+                }
+                container.innerHTML = allUsers.map(u => 
+                    '<label class="checkbox-item"><input type="checkbox" value="' + u.id + '"> ' + u.nombre_completo + '</label>'
+                ).join('');
+            }
+            
+            async function loadEvents() {
+                try {
+                    const inicioMes = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+                    const finMes = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59);
+                    
+                    const { data: events, error } = await supabaseClient
+                        .from('events')
+                        .select('*')
+                        .eq('id_tenant', currentTenantId)
+                        .gte('fecha_inicio', inicioMes.toISOString())
+                        .lte('fecha_inicio', finMes.toISOString())
+                        .order('fecha_inicio', { ascending: true });
+                    
+                    if (error) throw error;
+                    allEvents = events || [];
+                } catch (error) {
+                    console.error('Error cargando eventos:', error);
+                }
+            }
+            
+            function renderCalendar() {
+                const year = currentDate.getFullYear();
+                const month = currentDate.getMonth();
+                
+                document.getElementById('calendarTitle').textContent = '📅 ' + meses[month] + ' ' + year;
+                
+                const grid = document.getElementById('calendarGrid');
+                grid.innerHTML = '';
+                
+                // Headers de días
+                dias.forEach(d => {
+                    const header = document.createElement('div');
+                    header.className = 'calendar-day-header';
+                    header.textContent = d;
+                    grid.appendChild(header);
+                });
+                
+                // Primer día del mes
+                const primerDia = new Date(year, month, 1);
+                const ultimoDia = new Date(year, month + 1, 0);
+                const diasEnMes = ultimoDia.getDate();
+                
+                // Ajustar para que lunes sea 0
+                let diaInicio = primerDia.getDay() - 1;
+                if (diaInicio < 0) diaInicio = 6;
+                
+                // Días del mes anterior
+                const diasMesAnterior = new Date(year, month, 0).getDate();
+                for (let i = diaInicio - 1; i >= 0; i--) {
+                    const dayDiv = document.createElement('div');
+                    dayDiv.className = 'calendar-day other-month';
+                    dayDiv.innerHTML = '<div class="day-number">' + (diasMesAnterior - i) + '</div>';
+                    grid.appendChild(dayDiv);
+                }
+                
+                // Días del mes actual
+                const hoy = new Date();
+                for (let d = 1; d <= diasEnMes; d++) {
+                    const dayDiv = document.createElement('div');
+                    const esHoy = (hoy.getDate() === d && hoy.getMonth() === month && hoy.getFullYear() === year);
+                    dayDiv.className = 'calendar-day' + (esHoy ? ' today' : '');
+                    
+                    let html = '<div class="day-number' + (esHoy ? ' today' : '') + '">' + d + '</div>';
+                    
+                    // Eventos del día
+                    const eventosDelDia = allEvents.filter(e => {
+                        const fechaEvento = new Date(e.fecha_inicio);
+                        return fechaEvento.getDate() === d && fechaEvento.getMonth() === month && fechaEvento.getFullYear() === year;
+                    });
+                    
+                    eventosDelDia.forEach(e => {
+                        const color = colores[e.tipo] || '#4A90E2';
+                        html += '<div class="event-chip" style="background:' + color + ';" title="' + e.titulo + '">' + e.titulo + '</div>';
+                    });
+                    
+                    dayDiv.innerHTML = html;
+                    dayDiv.onclick = function() {
+                        openModal(d);
+                    };
+                    grid.appendChild(dayDiv);
+                }
+                
+                // Días del mes siguiente para completar la cuadrícula
+                const totalCeldas = diaInicio + diasEnMes;
+                const celdasRestantes = (7 - (totalCeldas % 7)) % 7;
+                for (let i = 1; i <= celdasRestantes; i++) {
+                    const dayDiv = document.createElement('div');
+                    dayDiv.className = 'calendar-day other-month';
+                    dayDiv.innerHTML = '<div class="day-number">' + i + '</div>';
+                    grid.appendChild(dayDiv);
+                }
+            }
+            
+            window.changeMonth = function(delta) {
+                currentDate.setMonth(currentDate.getMonth() + delta);
+                loadEvents().then(renderCalendar);
+            };
+            
+            window.goToToday = function() {
+                currentDate = new Date();
+                loadEvents().then(renderCalendar);
+            };
+            
+            window.openModal = function(dia) {
+                document.getElementById('modalEvento').classList.add('show');
+                document.getElementById('formEvento').reset();
+                
+                if (dia) {
+                    const year = currentDate.getFullYear();
+                    const month = currentDate.getMonth();
+                    const fechaStr = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(dia).padStart(2, '0');
+                    document.getElementById('fechaInicio').value = fechaStr + 'T09:00';
+                    document.getElementById('fechaFin').value = fechaStr + 'T10:00';
+                }
+            };
+            
+            window.closeModal = function() {
+                document.getElementById('modalEvento').classList.remove('show');
+            };
+            
+            document.getElementById('formEvento').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const participantesInternosCheckboxes = document.querySelectorAll('#participantesInternos input:checked');
+                const participantesInternos = Array.from(participantesInternosCheckboxes).map(cb => cb.value);
+                
+                const participantesExternosStr = document.getElementById('participantesExternos').value.trim();
+                const participantesExternos = participantesExternosStr ? participantesExternosStr.split(',').map(e => e.trim()).filter(e => e) : [];
+                
+                const tipo = document.getElementById('tipo').value;
+                
+                const data = {
+                    id_tenant: currentTenantId,
+                    id_creador: currentUserId,
+                    titulo: document.getElementById('titulo').value.trim(),
+                    descripcion: document.getElementById('descripcion').value.trim(),
+                    tipo: tipo,
+                    fecha_inicio: new Date(document.getElementById('fechaInicio').value).toISOString(),
+                    fecha_fin: new Date(document.getElementById('fechaFin').value).toISOString(),
+                    link_reunion: document.getElementById('linkReunion').value.trim(),
+                    recordatorio_minutos: parseInt(document.getElementById('recordatorio').value),
+                    participantes_internos: participantesInternos,
+                    participantes_externos: participantesExternos,
+                    color: colores[tipo]
+                };
+                
+                try {
+                    const { error } = await supabaseClient
+                        .from('events')
+                        .insert([data]);
+                    
+                    if (error) throw error;
+                    
+                    closeModal();
+                    await loadEvents();
+                    renderCalendar();
+                    alert('✅ Evento creado exitosamente');
+                    
+                    // Si hay participantes externos, abrir mailto para enviar invitación
+                    if (participantesExternos.length > 0) {
+                        const asunto = encodeURIComponent('Invitación: ' + data.titulo);
+                        const cuerpo = encodeURIComponent(
+                            'Hola,\n\nTe invito al siguiente evento:\n\n' +
+                            '📅 ' + data.titulo + '\n' +
+                            '🕐 ' + new Date(data.fecha_inicio).toLocaleString('es-PE') + ' - ' + new Date(data.fecha_fin).toLocaleTimeString('es-PE', {hour: '2-digit', minute:'2-digit'}) + '\n' +
+                            (data.link_reunion ? '🔗 Link: ' + data.link_reunion + '\n' : '') +
+                            (data.descripcion ? '\n' + data.descripcion + '\n' : '') +
+                            '\nSaludos,\n' + document.getElementById('userName').textContent + '\nKinetio Core'
+                        );
+                        const mailtoLink = 'mailto:' + participantesExternos.join(',') + '?subject=' + asunto + '&body=' + cuerpo;
+                        window.open(mailtoLink, '_blank');
+                    }
+                } catch (error) {
+                    alert('❌ Error: ' + error.message);
+                }
+            });
+            
+            window.logout = async function() {
+                await supabaseClient.auth.signOut();
+                localStorage.removeItem('kinetio_user');
+                window.location.href = 'index.html';
+            };
+        })();
+    </script>
+</body>
+</html>
