@@ -12,8 +12,6 @@
             background: #F4F7F6;
             color: #2D3748;
         }
-        
-        /* Sidebar */
         .sidebar {
             width: 250px;
             background: white;
@@ -47,14 +45,11 @@
             color: #718096;
             cursor: pointer;
             font-size: 14px;
+            transition: all 0.2s;
         }
         .sidebar-menu li:hover { background: #EBF4FF; color: #4A90E2; }
         .sidebar-menu li.active { background: #4A90E2; color: white; }
-        
-        /* Main content */
         .main { margin-left: 250px; padding: 30px; }
-        
-        /* Top bar */
         .topbar {
             display: flex;
             justify-content: space-between;
@@ -89,8 +84,6 @@
             margin-left: 10px;
         }
         .logout-btn:hover { background: #C53030; }
-        
-        /* Metrics grid */
         .metrics-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -124,8 +117,6 @@
             color: #718096;
             margin-top: 5px;
         }
-        
-        /* Table */
         .table-container {
             background: white;
             border-radius: 12px;
@@ -150,7 +141,6 @@
             font-size: 14px;
         }
         .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3); }
-        
         table { width: 100%; border-collapse: collapse; }
         th {
             background: #F7FAFC;
@@ -178,7 +168,6 @@
         .badge-warning { background: #FEFCBF; color: #744210; }
         .badge-danger { background: #FED7D7; color: #C53030; }
         .badge-info { background: #BEE3F8; color: #2C5282; }
-        
         .action-btn {
             background: none;
             border: 1px solid #E2E8F0;
@@ -189,14 +178,12 @@
             margin-right: 5px;
         }
         .action-btn:hover { background: #F7FAFC; }
-        
         .empty-state {
             text-align: center;
             padding: 60px 20px;
             color: #718096;
         }
         .empty-state-icon { font-size: 48px; margin-bottom: 15px; }
-        
         @media (max-width: 768px) {
             .sidebar { display: none; }
             .main { margin-left: 0; }
@@ -205,25 +192,22 @@
     </style>
 </head>
 <body>
-    <!-- Sidebar -->
     <div class="sidebar">
         <div class="sidebar-logo">
             <div class="sidebar-logo-icon">K</div>
             <div class="sidebar-logo-text">Kinetio Core</div>
         </div>
         <ul class="sidebar-menu">
-            <li class="active">📊 Dashboard</li>
-            <li>🏢 Tenants</li>
-            <li>👥 Usuarios</li>
-            <li>💳 Planes</li>
-            <li>📈 Métricas</li>
-            <li>⚙️ Configuración</li>
+            <li class="active" onclick="window.location.href='dashboard.html'">📊 Dashboard</li>
+            <li onclick="window.location.href='clientes.html'">🏢 Clientes</li>
+            <li onclick="window.location.href='pipeline.html'">🔄 Pipeline</li>
+            <li onclick="window.location.href='calendario.html'">📅 Calendario</li>
+            <li onclick="window.location.href='usuarios.html'">👥 Usuarios</li>
+            <li onclick="window.location.href='configuracion.html'">⚙️ Configuración</li>
         </ul>
     </div>
     
-    <!-- Main content -->
     <div class="main">
-        <!-- Top bar -->
         <div class="topbar">
             <h1>Torre de Control</h1>
             <div class="user-info">
@@ -236,7 +220,6 @@
             </div>
         </div>
         
-        <!-- Metrics -->
         <div class="metrics-grid">
             <div class="metric-card">
                 <div class="metric-label">Tenants Activos</div>
@@ -260,7 +243,6 @@
             </div>
         </div>
         
-        <!-- Tenants table -->
         <div class="table-container">
             <div class="table-header">
                 <h2>🏢 Tenants Registrados</h2>
@@ -289,7 +271,6 @@
             const SUPABASE_KEY = 'sb_publishable_zaAj4M7TFUD2eTvrBl9jRA_nlRHjxCp';
             const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
             
-            // Verificar sesión
             supabaseClient.auth.getSession().then(({ data: { session } }) => {
                 if (!session) {
                     window.location.href = 'index.html';
@@ -300,7 +281,6 @@
             
             async function loadDashboard() {
                 try {
-                    // Cargar perfil del usuario
                     const { data: { user } } = await supabaseClient.auth.getUser();
                     const { data: profile } = await supabaseClient
                         .from('profiles')
@@ -314,7 +294,6 @@
                         document.getElementById('userAvatar').textContent = profile.nombre_completo.charAt(0).toUpperCase();
                     }
                     
-                    // Cargar tenants
                     const { data: tenants, error } = await supabaseClient
                         .from('tenants')
                         .select('*')
@@ -322,24 +301,19 @@
                     
                     if (error) throw error;
                     
-                    // Actualizar métricas
                     const tenantsActivos = tenants.filter(t => t.estado === 'activo').length;
                     document.getElementById('metricTenants').textContent = tenantsActivos;
                     
-                    // Calcular MRR (precios en soles)
                     const precios = { basico: 79, pro: 149, enterprise: 349 };
                     const mrr = tenants.reduce((sum, t) => sum + (precios[t.plan] || 0), 0);
                     document.getElementById('metricMRR').textContent = 'S/ ' + mrr;
                     
-                    // Almacenamiento total
                     const storageUsado = tenants.reduce((sum, t) => sum + (t.almacenamiento_usado || 0), 0);
                     const storageGB = (storageUsado / 1073741824).toFixed(2);
                     document.getElementById('metricStorage').textContent = storageGB + ' GB';
                     
-                    // Total usuarios (estimado: 1 por tenant por ahora)
                     document.getElementById('metricUsers').textContent = tenants.length;
                     
-                    // Renderizar tabla
                     renderTenantsTable(tenants);
                     
                 } catch (error) {
@@ -352,12 +326,10 @@
             function renderTenantsTable(tenants) {
                 const container = document.getElementById('tenantsTableContainer');
                 
-                if (tenants.length === 0) {
+                if (!tenants || tenants.length === 0) {
                     container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><div>Aún no hay tenants registrados</div></div>';
                     return;
                 }
-                
-                const precios = { basico: 79, pro: 149, enterprise: 349 };
                 
                 let html = '<table><thead><tr>';
                 html += '<th>Empresa</th><th>Plan</th><th>Usuarios</th><th>Estado</th><th>Pago</th><th>Acciones</th>';
