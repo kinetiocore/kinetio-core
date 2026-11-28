@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kinetio Core - Ficha de Cliente</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #F4F7F6;
+            color: #2D3748;
+        }
+        .sidebar {
+            width: 250px;
+            background: white;
+            border-right: 1px solid #E2E8F0;
+            padding: 20px;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+        }
+        .sidebar-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #E2E8F0;
+        }
+        .sidebar-logo-icon {
+            width: 40px; height: 40px;
+            background: linear-gradient(135deg, #4A90E2, #50E3C2);
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 800; font-size: 20px;
+        }
+        .sidebar-logo-text { font-weight: 700; color: #2D3748; }
+        .sidebar-menu { list-style: none; }
+        .sidebar-menu li {
+            padding: 12px 16px;
+            margin-bottom: 5px;
+            border-radius: 8px;
+            color: #718096;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .sidebar-menu li:hover { background: #EBF4FF; color: #4A90E2; }
+        .sidebar-menu li.active { background: #4A90E2; color: white; }
+        .main { margin-left: 250px; padding: 30px; }
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        .topbar h1 { font-size: 28px; color: #2D3748; }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .user-avatar {
+            width: 32px; height: 32px;
+            background: linear-gradient(135deg, #4A90E2, #50E3C2);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 700; font-size: 14px;
+        }
+        .logout-btn {
+            background: #E53E3E;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            margin-left: 10px;
+        }
+        .logout-btn:hover { background: #C53030; }
+        .back-btn {
+            background: white;
+            border: 1px solid #E2E8F0;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+        }
+        .back-btn:hover { background: #F7FAFC; }
+        .btn-primary {
+            background: linear-gradient(135deg, #4A90E2, #50E3C2);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3); }
+        .btn-secondary {
+            background: #E2E8F0;
+            color: #2D3748;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .btn-danger {
+            background: #E53E3E;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .btn-danger:hover { background: #C53030; }
+        
+        /* Grid layout */
+        .ficha-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .ficha-section {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .ficha-section.full-width {
+            grid-column: 1 / -1;
+        }
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #E2E8F0;
+        }
+        .section-header h2 { font-size: 18px; color: #2D3748; }
+        
+        /* Company info */
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .info-item {
+            padding: 12px;
+            background: #F7FAFC;
+            border-radius: 8px;
+        }
+        .info-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #718096;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+        }
+        .info-value {
+            font-size: 15px;
+            font-weight: 600;
+            color: #2D3748;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .badge-success { background: #C6F6D5; color: #22543D; }
+        .badge-warning { background: #FEFCBF; color: #744210; }
+        .badge-info { background: #BEE3F8; color: #2C5282; }
+        .badge-gray { background: #E2E8F0; color: #4A5568; }
+        
+        /* Contacts */
+        .contact-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            border: 1px solid #E2E8F0;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        .contact-info { flex: 1; }
+        .contact-name { font-weight: 600; color: #2D3748; font-size: 14px; }
+        .contact-meta { font-size: 12px; color: #718096; margin-top: 3px; }
+        .contact-actions { display: flex; gap: 5px; }
+        .empty-state {
+            text-align: center;
+            padding: 30px;
+            color: #A0AEC0;
+            font-size: 13px;
+        }
+        
+        /* Timeline */
+        .timeline {
+            position: relative;
+            padding-left: 30px;
+        }
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 10px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #E2E8F0;
+        }
+        .timeline-item {
+            position: relative;
+            padding: 15px;
+            background: #F7FAFC;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -26px;
+            top: 20px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #4A90E2;
+            border: 2px solid white;
+        }
+        .timeline-item.tarea::before { background: #DD6B20; }
+        .timeline-item.llamada::before { background: #38A169; }
+        .timeline-item.reunion::before { background: #805AD5; }
+        .timeline-item.email::before { background: #50E3C2; }
+        .timeline-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .timeline-type {
+            font-size: 11px;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: #718096;
+        }
+        .timeline-date {
+            font-size: 11px;
+            color: #A0AEC0;
+        }
+        .timeline-content {
+            font-size: 14px;
+            color: #2D3748;
+            line-height: 1.5;
+        }
+        .timeline-author {
+            font-size: 11px;
+            color: #718096;
+            margin-top: 8px;
+        }
+        .tarea-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+        .tarea-pendiente { background: #FEFCBF; color: #744210; }
+        .tarea-completada { background: #C6F6D5; color: #22543D; text-decoration: line-through; }
+        
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal.show { display: flex; }
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            width: 100%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .modal-header h3 { font-size: 20px; color: #2D3748; }
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #718096;
+        }
+        .form-group { margin-bottom: 20px; }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2D3748;
+            font-size: 14px;
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid #E2E8F0;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #4A90E2;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .modal-footer {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+        .toggle-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: #F7FAFC;
+            border-radius: 8px;
+        }
+        .toggle-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .main { margin-left: 0; }
+            .ficha-grid { grid-template-columns: 1fr; }
+            .info-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-logo">
+            <div class="sidebar-logo-icon">K</div>
+            <div class="sidebar-logo-text">Kinetio Core</div>
+        </div>
+        <ul class="sidebar-menu">
+            <li onclick="window.location.href='dashboard.html'">📊 Dashboard</li>
+            <li class="active" onclick="window.location.href='clientes.html'">🏢 Clientes</li>
+            <li onclick="window.location.href='pipeline.html'">🔄 Pipeline</li>
+            <li onclick="window.location.href='calendario.html'">📅 Calendario</li>
+            <li onclick="window.location.href='usuarios.html'">👥 Usuarios</li>
+            <li onclick="window.location.href='configuracion.html'">⚙️ Configuración</li>
+        </ul>
+    </div>
+    
+    <div class="main">
+        <div class="topbar">
+            <div style="display:flex; align-items:center;">
+                <button class="back-btn" onclick="window.location.href='clientes.html'">← Volver</button>
+                <h1 id="pageTitle">Ficha de Cliente</h1>
+            </div>
+            <div class="user-info">
+                <div class="user-avatar" id="userAvatar">F</div>
+                <div>
+                    <div style="font-weight: 600; font-size: 14px;" id="userName">Cargando...</div>
+                    <div style="font-size: 11px; color: #718096;" id="userRole">-</div>
+                </div>
+                <button class="logout-btn" onclick="logout()">Salir</button>
+            </div>
+        </div>
+        
+        <div id="loadingState" style="text-align:center; padding:60px; color:#718096;">
+            <div style="font-size:48px; margin-bottom:15px;">🔄</div>
+            <div>Cargando ficha del cliente...</div>
+        </div>
+        
+        <div id="fichaContent" style="display:none;">
+            <!-- Sección Empresa -->
+            <div class="ficha-grid">
+                <div class="ficha-section full-width">
+                    <div class="section-header">
+                        <h2>🏢 Datos de la Empresa</h2>
+                        <button class="btn-primary" onclick="openModalEmpresa()">✏️ Editar</button>
+                    </div>
+                    <div class="info-grid" id="empresaInfo"></div>
+                </div>
+            </div>
+            
+            <!-- Sección Contactos -->
+            <div class="ficha-grid">
+                <div class="ficha-section">
+                    <div class="section-header">
+                        <h2>👥 Contactos</h2>
+                        <button class="btn-primary" onclick="openModalContacto()">+ Contacto</button>
+                    </div>
+                    <div id="contactosList"></div>
+                </div>
+                
+                <!-- Sección Pipeline -->
+                <div class="ficha-section">
+                    <div class="section-header">
+                        <h2>🔄 Etapa en Pipeline</h2>
+                    </div>
+                    <div id="pipelineInfo"></div>
+                </div>
+            </div>
+            
+            <!-- Sección Timeline -->
+            <div class="ficha-grid">
+                <div class="ficha-section full-width">
+                    <div class="section-header">
+                        <h2>📝 Timeline de Notas y Tareas</h2>
+                        <button class="btn-primary" onclick="openModalNota()">+ Nueva Nota</button>
+                    </div>
+                    <div id="timelineList"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal Editar Empresa -->
+    <div id="modalEmpresa" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Editar Empresa</h3>
+                <button class="close-btn" onclick="closeModal('modalEmpresa')">&times;</button>
+            </div>
+            <form id="formEmpresa">
+                <div class="form-group">
+                    <label>Razón Social *</label>
+                    <input type="text" id="editRazonSocial" required>
+                </div>
+                <div class="form-group">
+                    <label>Nombre Fantasía</label>
+                    <input type="text" id="editNombreFantasia">
+                </div>
+                <div class="form-group">
+                    <label>RUC/DNI *</label>
+                    <input type="text" id="editRucDni" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Estado</label>
+                        <select id="editEstado">
+                            <option value="prospecto">Prospecto</option>
+                            <option value="activo">Activo</option>
+                            <option value="cerrado">Cerrado</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Etapa Pipeline</label>
+                        <select id="editEtapa">
+                            <option value="prospecto">Prospecto</option>
+                            <option value="contactado">Contactado</option>
+                            <option value="reunion_agendada">Reunión Agendada</option>
+                            <option value="cotizacion_enviada">Cotización Enviada</option>
+                            <option value="negociacion">Negociación</option>
+                            <option value="ganado">Ganado</option>
+                            <option value="no_ahora">No Ahora</option>
+                            <option value="perdido">Perdido</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Valor Estimado (S/)</label>
+                    <input type="number" id="editValor" min="0" step="0.01">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" onclick="closeModal('modalEmpresa')">Cancelar</button>
+                    <button type="submit" class="btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Modal Contacto -->
+    <div id="modalContacto" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalContactoTitle">Nuevo Contacto</h3>
+                <button class="close-btn" onclick="closeModal('modalContacto')">&times;</button>
+            </div>
+            <form id="formContacto">
+                <input type="hidden" id="editContactoId">
+                <div class="form-group">
+                    <label>Nombre Completo *</label>
+                    <input type="text" id="contactoNombre" required>
+                </div>
+                <div class="form-group">
+                    <label>Cargo</label>
+                    <input type="text" id="contactoCargo" placeholder="Gerente, Director, etc.">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Teléfono</label>
+                        <input type="tel" id="contactoTelefono">
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="contactoEmail">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>LinkedIn</label>
+                    <input type="url" id="contactoLinkedin" placeholder="https://linkedin.com/in/...">
+                </div>
+                <div class="toggle-group">
+                    <input type="checkbox" id="contactoPrincipal">
+                    <label for="contactoPrincipal">⭐ Contacto principal</label>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-danger" id="btnEliminarContacto" style="display:none;" onclick="eliminarContacto()">🗑️ Eliminar</button>
+                    <div style="flex:1;"></div>
+                    <button type="button" class="btn-secondary" onclick="closeModal('modalContacto')">Cancelar</button>
+                    <button type="submit" class="btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Modal Nota -->
+    <div id="modalNota" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalNotaTitle">Nueva Nota</h3>
+                <button class="close-btn" onclick="closeModal('modalNota')">&times;</button>
+            </div>
+            <form id="formNota">
+                <input type="hidden" id="editNotaId">
+                <div class="form-group">
+                    <label>Tipo</label>
+                    <select id="notaTipo">
+                        <option value="nota">📝 Nota</option>
+                        <option value="tarea">✅ Tarea</option>
+                        <option value="llamada">📞 Llamada</option>
+                        <option value="reunion">🤝 Reunión</option>
+                        <option value="email">📧 Email</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Contenido *</label>
+                    <textarea id="notaContenido" rows="4" required></textarea>
+                </div>
+                <div class="toggle-group">
+                    <input type="checkbox" id="notaEsTarea" onchange="toggleTareaFields()">
+                    <label for="notaEsTarea">📌 Es una tarea</label>
+                </div>
+                <div id="tareaFields" style="display:none; margin-top:15px;">
+                    <div class="form-group">
+                        <label>Fecha de vencimiento</label>
+                        <input type="datetime-local" id="notaFechaVencimiento">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-danger" id="btnEliminarNota" style="display:none;" onclick="eliminarNota()">🗑️ Eliminar</button>
+                    <div style="flex:1;"></div>
+                    <button type="button" class="btn-secondary" onclick="closeModal('modalNota')">Cancelar</button>
+                    <button type="submit" class="btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            'use strict';
+            
+            if (typeof window.supabase === 'undefined') {
+                alert('Error: No se pudo cargar Supabase.');
+                window.location.href = 'index.html';
+                return;
+            }
+            
+            const SUPABASE_URL = 'https://fipcubgwvqabwpplpkvx.supabase.co';
+            const SUPABASE_KEY = 'sb_publishable_zaAj4M7TFUD2eTvrBl9jRA_nlRHjxCp';
+            const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            
+            let currentTenantId = null;
+            let currentUserId = null;
+            let currentCompanyId = null;
+            let currentCompany = null;
+            let contactos = [];
+            let notas = [];
+            
+            const params = new URLSearchParams(window.location.search);
+            currentCompanyId = params.get('id');
+            
+            if (!currentCompanyId) {
+                alert('No se especificó un cliente. Volviendo a la lista...');
+                window.location.href = 'clientes.html';
+                return;
+            }
+            
+            supabaseClient.auth.getSession().then(async ({ data: { session } }) => {
+                if (!session) {
+                    window.location.href = 'index.html';
+                } else {
+                    await loadUserProfile();
+                    await loadCompany();
+                    await loadContactos();
+                    await loadNotas();
+                    renderAll();
+                }
+            });
+            
+            async function loadUserProfile() {
+                try {
+                    const { data: { user } } = await supabaseClient.auth.getUser();
+                    currentUserId = user.id;
+                    const { data: profile } = await supabaseClient
+                        .from('profiles')
+                        .select('*')
+                        .eq('id', user.id)
+                        .single();
+                    
+                    if (profile) {
+                        document.getElementById('userName').textContent = profile.nombre_completo;
+                        document.getElementById('userRole').textContent = profile.rol;
+                        document.getElementById('userAvatar').textContent = profile.nombre_completo.charAt(0).toUpperCase();
+                        currentTenantId = profile.id_tenant;
+                    }
+                } catch (error) {
+                    console.error('Error cargando perfil:', error);
+                }
+            }
+            
+            async function loadCompany() {
+                try {
+                    const { data: company, error } = await supabaseClient
+                        .from('companies')
+                        .select('*')
+                        .eq('id', currentCompanyId)
+                        .eq('id_tenant', currentTenantId)
+                        .single();
+                    
+                    if (error) throw error;
+                    currentCompany = company;
+                    document.getElementById('pageTitle').textContent = company.nombre_fantasia || company.razon_social;
+                } catch (error) {
+                    console.error('Error cargando empresa:', error);
+                    alert('Error al cargar la empresa: ' + error.message);
+                    window.location.href = 'clientes.html';
+                }
+            }
+            
+            async function loadContactos() {
+                try {
+                    const { data, error } = await supabaseClient
+                        .from('contacts')
+                        .select('*')
+                        .eq('id_empresa', currentCompanyId)
+                        .order('es_contacto_principal', { ascending: false })
+                        .order('fecha_creacion', { ascending: false });
+                    
+                    if (error) throw error;
+                    contactos = data || [];
+                } catch (error) {
+                    console.error('Error cargando contactos:', error);
+                }
+            }
+            
+            async function loadNotas() {
+                try {
+                    const { data, error } = await supabaseClient
+                        .from('notes')
+                        .select('*, profiles(nombre_completo)')
+                        .eq('id_empresa', currentCompanyId)
+                        .order('fecha_creacion', { ascending: false });
+                    
+                    if (error) throw error;
+                    notas = data || [];
+                } catch (error) {
+                    console.error('Error cargando notas:', error);
+                }
+            }
+            
+            function renderAll() {
+                document.getElementById('loadingState').style.display = 'none';
+                document.getElementById('fichaContent').style.display = 'block';
+                
+                renderEmpresaInfo();
+                renderContactos();
+                renderPipeline();
+                renderTimeline();
+            }
+            
+            function renderEmpresaInfo() {
+                const estadoBadge = currentCompany.estado === 'activo' ? 'badge-success' : (currentCompany.estado === 'prospecto' ? 'badge-warning' : 'badge-gray');
+                
+                document.getElementById('empresaInfo').innerHTML = `
+                    <div class="info-item">
+                        <div class="info-label">Razón Social</div>
+                        <div class="info-value">${currentCompany.razon_social}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Nombre Fantasía</div>
+                        <div class="info-value">${currentCompany.nombre_fantasia || '-'}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">RUC/DNI</div>
+                        <div class="info-value">${currentCompany.ruc_dni || '-'}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Estado</div>
+                        <div class="info-value"><span class="badge ${estadoBadge}">${currentCompany.estado}</span></div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Valor Estimado</div>
+                        <div class="info-value" style="color:#38A169;">S/ ${(currentCompany.valor_estimado || 0).toFixed(2)}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Creado el</div>
+                        <div class="info-value">${new Date(currentCompany.fecha_creacion).toLocaleDateString('es-PE')}</div>
+                    </div>
+                `;
+            }
+            
+            function renderContactos() {
+                const container = document.getElementById('contactosList');
+                
+                if (contactos.length === 0) {
+                    container.innerHTML = '<div class="empty-state">📭 Sin contactos. Agrega el primero.</div>';
+                    return;
+                }
+                
+                container.innerHTML = contactos.map(c => `
+                    <div class="contact-item">
+                        <div class="contact-info">
+                            <div class="contact-name">${c.es_contacto_principal ? '⭐ ' : ''}${c.nombre_completo}</div>
+                            <div class="contact-meta">
+                                ${c.cargo ? '💼 ' + c.cargo + ' · ' : ''}
+                                ${c.telefono ? '📞 ' + c.telefono + ' · ' : ''}
+                                ${c.email ? '✉️ ' + c.email : ''}
+                            </div>
+                        </div>
+                        <div class="contact-actions">
+                            <button class="btn-secondary" onclick="editarContacto('${c.id}')">✏️</button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+            
+            function renderPipeline() {
+                const etapas = {
+                    prospecto: { nombre: 'Prospecto', color: '#A0AEC0' },
+                    contactado: { nombre: 'Contactado', color: '#4A90E2' },
+                    reunion_agendada: { nombre: 'Reunión Agendada', color: '#50E3C2' },
+                    cotizacion_enviada: { nombre: 'Cotización Enviada', color: '#DD6B20' },
+                    negociacion: { nombre: 'Negociación', color: '#805AD5' },
+                    ganado: { nombre: 'Ganado ✅', color: '#38A169' },
+                    no_ahora: { nombre: 'No Ahora', color: '#D69E2E' },
+                    perdido: { nombre: 'Perdido', color: '#E53E3E' }
+                };
+                
+                const etapa = etapas[currentCompany.etapa_pipeline] || etapas.prospecto;
+                
+                document.getElementById('pipelineInfo').innerHTML = `
+                    <div style="text-align:center; padding:20px;">
+                        <div style="font-size:48px; margin-bottom:10px;">🔄</div>
+                        <div style="font-size:18px; font-weight:700; color:${etapa.color}; margin-bottom:10px;">${etapa.nombre}</div>
+                        <div style="font-size:13px; color:#718096;">Etapa actual en el pipeline</div>
+                        <button class="btn-primary" style="margin-top:15px;" onclick="window.location.href='pipeline.html'">Ver Pipeline Completo</button>
+                    </div>
+                `;
+            }
+            
+            function renderTimeline() {
+                const container = document.getElementById('timelineList');
+                
+                if (notas.length === 0) {
+                    container.innerHTML = '<div class="empty-state">📝 Sin notas ni tareas. Agrega la primera.</div>';
+                    return;
+                }
+                
+                const tipoLabels = {
+                    nota: '📝 Nota',
+                    tarea: '✅ Tarea',
+                    llamada: '📞 Llamada',
+                    reunion: '🤝 Reunión',
+                    email: '📧 Email'
+                };
+                
+                container.innerHTML = '<div class="timeline">' + notas.map(n => {
+                    const fecha = new Date(n.fecha_creacion).toLocaleString('es-PE');
+                    const autor = n.profiles?.nombre_completo || 'Sistema';
+                    const tareaClass = n.es_tarea ? ' tarea' : '';
+                    const tareaBadge = n.es_tarea ? 
+                        `<span class="tarea-badge ${n.estado_tarea === 'completada' ? 'tarea-completada' : 'tarea-pendiente'}">${n.estado_tarea || 'pendiente'}</span>` : '';
+                    
+                    return `
+                        <div class="timeline-item${tareaClass}">
+                            <div class="timeline-header">
+                                <span class="timeline-type">${tipoLabels[n.tipo] || '📝 Nota'}${tareaBadge}</span>
+                                <span class="timeline-date">${fecha}</span>
+                            </div>
+                            <div class="timeline-content">${n.contenido}</div>
+                            <div class="timeline-author">Por ${autor} · <a href="#" onclick="editarNota('${n.id}'); return false;" style="color:#4A90E2;">Editar</a></div>
+                        </div>
+                    `;
+                }).join('') + '</div>';
+            }
+            
+            // Modal Empresa
+            window.openModalEmpresa = function() {
+                document.getElementById('editRazonSocial').value = currentCompany.razon_social || '';
+                document.getElementById('editNombreFantasia').value = currentCompany.nombre_fantasia || '';
+                document.getElementById('editRucDni').value = currentCompany.ruc_dni || '';
+                document.getElementById('editEstado').value = currentCompany.estado || 'prospecto';
+                document.getElementById('editEtapa').value = currentCompany.etapa_pipeline || 'prospecto';
+                document.getElementById('editValor').value = currentCompany.valor_estimado || 0;
+                document.getElementById('modalEmpresa').classList.add('show');
+            };
+            
+            document.getElementById('formEmpresa').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const data = {
+                    razon_social: document.getElementById('editRazonSocial').value.trim(),
+                    nombre_fantasia: document.getElementById('editNombreFantasia').value.trim(),
+                    ruc_dni: document.getElementById('editRucDni').value.trim(),
+                    estado: document.getElementById('editEstado').value,
+                    etapa_pipeline: document.getElementById('editEtapa').value,
+                    valor_estimado: parseFloat(document.getElementById('editValor').value) || 0,
+                    fecha_actualizacion: new Date().toISOString()
+                };
+                
+                try {
+                    const { error } = await supabaseClient
+                        .from('companies')
+                        .update(data)
+                        .eq('id', currentCompanyId);
+                    
+                    if (error) throw error;
+                    
+                    await loadCompany();
+                    renderEmpresaInfo();
+                    renderPipeline();
+                    closeModal('modalEmpresa');
+                    alert('✅ Empresa actualizada');
+                } catch (error) {
+                    alert('❌ Error: ' + error.message);
+                }
+            });
+            
+            // Modal Contacto
+            window.openModalContacto = function() {
+                document.getElementById('modalContactoTitle').textContent = 'Nuevo Contacto';
+                document.getElementById('btnEliminarContacto').style.display = 'none';
+                document.getElementById('editContactoId').value = '';
+                document.getElementById('formContacto').reset();
+                document.getElementById('modalContacto').classList.add('show');
+            };
+            
+            window.editarContacto = function(id) {
+                const c = contactos.find(x => x.id === id);
+                if (!c) return;
+                
+                document.getElementById('modalContactoTitle').textContent = 'Editar Contacto';
+                document.getElementById('btnEliminarContacto').style.display = 'block';
+                document.getElementById('editContactoId').value = c.id;
+                document.getElementById('contactoNombre').value = c.nombre_completo || '';
+                document.getElementById('contactoCargo').value = c.cargo || '';
+                document.getElementById('contactoTelefono').value = c.telefono || '';
+                document.getElementById('contactoEmail').value = c.email || '';
+                document.getElementById('contactoLinkedin').value = c.linkedin || '';
+                document.getElementById('contactoPrincipal').checked = c.es_contacto_principal || false;
+                document.getElementById('modalContacto').classList.add('show');
+            };
+            
+            document.getElementById('formContacto').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const editId = document.getElementById('editContactoId').value;
+                const data = {
+                    id_empresa: currentCompanyId,
+                    id_tenant: currentTenantId,
+                    nombre_completo: document.getElementById('contactoNombre').value.trim(),
+                    cargo: document.getElementById('contactoCargo').value.trim(),
+                    telefono: document.getElementById('contactoTelefono').value.trim(),
+                    email: document.getElementById('contactoEmail').value.trim(),
+                    linkedin: document.getElementById('contactoLinkedin').value.trim(),
+                    es_contacto_principal: document.getElementById('contactoPrincipal').checked
+                };
+                
+                try {
+                    let error;
+                    if (editId) {
+                        const result = await supabaseClient
+                            .from('contacts')
+                            .update(data)
+                            .eq('id', editId);
+                        error = result.error;
+                    } else {
+                        const result = await supabaseClient
+                            .from('contacts')
+                            .insert([data]);
+                        error = result.error;
+                    }
+                    
+                    if (error) throw error;
+                    
+                    await loadContactos();
+                    renderContactos();
+                    closeModal('modalContacto');
+                    alert('✅ Contacto ' + (editId ? 'actualizado' : 'creado'));
+                } catch (error) {
+                    alert('❌ Error: ' + error.message);
+                }
+            });
+            
+            window.eliminarContacto = async function() {
+                const editId = document.getElementById('editContactoId').value;
+                if (!editId) return;
+                if (!confirm('¿Eliminar este contacto?')) return;
+                
+                try {
+                    const { error } = await supabaseClient
+                        .from('contacts')
+                        .delete()
+                        .eq('id', editId);
+                    
+                    if (error) throw error;
+                    
+                    await loadContactos();
+                    renderContactos();
+                    closeModal('modalContacto');
+                    alert('🗑️ Contacto eliminado');
+                } catch (error) {
+                    alert('❌ Error: ' + error.message);
+                }
+            };
+            
+            // Modal Nota
+            window.openModalNota = function() {
+                document.getElementById('modalNotaTitle').textContent = 'Nueva Nota';
+                document.getElementById('btnEliminarNota').style.display = 'none';
+                document.getElementById('editNotaId').value = '';
+                document.getElementById('formNota').reset();
+                document.getElementById('tareaFields').style.display = 'none';
+                document.getElementById('modalNota').classList.add('show');
+            };
+            
+            window.editarNota = function(id) {
+                const n = notas.find(x => x.id === id);
+                if (!n) return;
+                
+                document.getElementById('modalNotaTitle').textContent = 'Editar Nota';
+                document.getElementById('btnEliminarNota').style.display = 'block';
+                document.getElementById('editNotaId').value = n.id;
+                document.getElementById('notaTipo').value = n.tipo || 'nota';
+                document.getElementById('notaContenido').value = n.contenido || '';
+                document.getElementById('notaEsTarea').checked = n.es_tarea || false;
+                toggleTareaFields();
+                if (n.fecha_vencimiento) {
+                    const d = new Date(n.fecha_vencimiento);
+                    const format = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0') + 'T' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+                    document.getElementById('notaFechaVencimiento').value = format;
+                }
+                document.getElementById('modalNota').classList.add('show');
+            };
+            
+            window.toggleTareaFields = function() {
+                const esTarea = document.getElementById('notaEsTarea').checked;
+                document.getElementById('tareaFields').style.display = esTarea ? 'block' : 'none';
+            };
+            
+            document.getElementById('formNota').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const editId = document.getElementById('editNotaId').value;
+                const esTarea = document.getElementById('notaEsTarea').checked;
+                const data = {
+                    id_empresa: currentCompanyId,
+                    id_tenant: currentTenantId,
+                    id_usuario_autor: currentUserId,
+                    tipo: document.getElementById('notaTipo').value,
+                    contenido: document.getElementById('notaContenido').value.trim(),
+                    es_tarea: esTarea,
+                    fecha_vencimiento: esTarea && document.getElementById('notaFechaVencimiento').value ? 
+                        new Date(document.getElementById('notaFechaVencimiento').value).toISOString() : null,
+                    estado_tarea: esTarea ? 'pendiente' : null
+                };
+                
+                try {
+                    let error;
+                    if (editId) {
+                        const result = await supabaseClient
+                            .from('notes')
+                            .update(data)
+                            .eq('id', editId);
+                        error = result.error;
+                    } else {
+                        const result = await supabaseClient
+                            .from('notes')
+                            .insert([data]);
+                        error = result.error;
+                    }
+                    
+                    if (error) throw error;
+                    
+                    await loadNotas();
+                    renderTimeline();
+                    closeModal('modalNota');
+                    alert('✅ Nota ' + (editId ? 'actualizada' : 'creada'));
+                } catch (error) {
+                    alert('❌ Error: ' + error.message);
+                }
+            });
+            
+            window.eliminarNota = async function() {
+                const editId = document.getElementById('editNotaId').value;
+                if (!editId) return;
+                if (!confirm('¿Eliminar esta nota?')) return;
+                
+                try {
+                    const { error } = await supabaseClient
+                        .from('notes')
+                        .delete()
+                        .eq('id', editId);
+                    
+                    if (error) throw error;
+                    
+                    await loadNotas();
+                    renderTimeline();
+                    closeModal('modalNota');
+                    alert('🗑️ Nota eliminada');
+                } catch (error) {
+                    alert('❌ Error: ' + error.message);
+                }
+            };
+            
+            window.closeModal = function(id) {
+                document.getElementById(id).classList.remove('show');
+            };
+            
+            window.logout = async function() {
+                await supabaseClient.auth.signOut();
+                localStorage.removeItem('kinetio_user');
+                window.location.href = 'index.html';
+            };
+        })();
+    </script>
+</body>
+</html>
