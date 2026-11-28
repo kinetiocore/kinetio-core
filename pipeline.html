@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kinetio Core - Pipeline</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #F4F7F6;
+            color: #2D3748;
+        }
+        .sidebar {
+            width: 250px;
+            background: white;
+            border-right: 1px solid #E2E8F0;
+            padding: 20px;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+        }
+        .sidebar-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #E2E8F0;
+        }
+        .sidebar-logo-icon {
+            width: 40px; height: 40px;
+            background: linear-gradient(135deg, #4A90E2, #50E3C2);
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 800; font-size: 20px;
+        }
+        .sidebar-logo-text { font-weight: 700; color: #2D3748; }
+        .sidebar-menu { list-style: none; }
+        .sidebar-menu li {
+            padding: 12px 16px;
+            margin-bottom: 5px;
+            border-radius: 8px;
+            color: #718096;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .sidebar-menu li:hover { background: #EBF4FF; color: #4A90E2; }
+        .sidebar-menu li.active { background: #4A90E2; color: white; }
+        .main { margin-left: 250px; padding: 30px; }
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        .topbar h1 { font-size: 28px; color: #2D3748; }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .user-avatar {
+            width: 32px; height: 32px;
+            background: linear-gradient(135deg, #4A90E2, #50E3C2);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 700; font-size: 14px;
+        }
+        .logout-btn {
+            background: #E53E3E;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            margin-left: 10px;
+        }
+        .logout-btn:hover { background: #C53030; }
+        .pipeline-container {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .pipeline-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .pipeline-header h2 { font-size: 20px; color: #2D3748; }
+        .btn-primary {
+            background: linear-gradient(135deg, #4A90E2, #50E3C2);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3); }
+        .kanban-board {
+            display: flex;
+            gap: 15px;
+            overflow-x: auto;
+            padding-bottom: 20px;
+        }
+        .kanban-column {
+            min-width: 280px;
+            max-width: 280px;
+            background: #F7FAFC;
+            border-radius: 8px;
+            padding: 15px;
+        }
+        .kanban-column-header {
+            font-weight: 700;
+            font-size: 14px;
+            color: #2D3748;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #E2E8F0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .kanban-column-count {
+            background: #4A90E2;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+        .kanban-card {
+            background: white;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            cursor: grab;
+            transition: transform 0.2s, box-shadow 0.2s;
+            border-left: 4px solid #4A90E2;
+        }
+        .kanban-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .kanban-card.dragging {
+            opacity: 0.5;
+            cursor: grabbing;
+        }
+        .kanban-card-title {
+            font-weight: 600;
+            font-size: 14px;
+            color: #2D3748;
+            margin-bottom: 8px;
+        }
+        .kanban-card-meta {
+            font-size: 12px;
+            color: #718096;
+            margin-bottom: 8px;
+        }
+        .kanban-card-value {
+            font-weight: 700;
+            color: #38A169;
+            font-size: 13px;
+        }
+        .kanban-column.drag-over {
+            background: #EBF4FF;
+            border: 2px dashed #4A90E2;
+        }
+        .empty-column {
+            text-align: center;
+            padding: 30px 20px;
+            color: #A0AEC0;
+            font-size: 13px;
+        }
+        .stats-bar {
+            display: flex;
+            gap: 20px;
+            padding: 12px 20px;
+            background: #F7FAFC;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            flex-wrap: wrap;
+        }
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+            .main { margin-left: 0; }
+            .kanban-board { flex-direction: column; }
+            .kanban-column { min-width: 100%; max-width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-logo">
+            <div class="sidebar-logo-icon">K</div>
+            <div class="sidebar-logo-text">Kinetio Core</div>
+        </div>
+        <ul class="sidebar-menu">
+            <li onclick="window.location.href='dashboard.html'">📊 Dashboard</li>
+            <li onclick="window.location.href='clientes.html'">🏢 Clientes</li>
+            <li class="active" onclick="window.location.href='pipeline.html'">🔄 Pipeline</li>
+            <li onclick="window.location.href='calendario.html'">📅 Calendario</li>
+            <li onclick="window.location.href='usuarios.html'">👥 Usuarios</li>
+            <li onclick="window.location.href='configuracion.html'">⚙️ Configuración</li>
+        </ul>
+    </div>
+    
+    <div class="main">
+        <div class="topbar">
+            <h1>Pipeline de Ventas</h1>
+            <div class="user-info">
+                <div class="user-avatar" id="userAvatar">F</div>
+                <div>
+                    <div style="font-weight: 600; font-size: 14px;" id="userName">Cargando...</div>
+                    <div style="font-size: 11px; color: #718096;" id="userRole">-</div>
+                </div>
+                <button class="logout-btn" onclick="logout()">Salir</button>
+            </div>
+        </div>
+        
+        <div class="pipeline-container">
+            <div class="pipeline-header">
+                <h2>🔄 Kanban de Oportunidades</h2>
+                <button class="btn-primary" onclick="window.location.href='clientes.html'">+ Nuevo Cliente</button>
+            </div>
+            
+            <div class="stats-bar">
+                <div class="stat-item">📊 <strong id="statTotal">0</strong> oportunidades</div>
+                <div class="stat-item">💰 Valor total: <strong id="statValor">S/ 0</strong></div>
+                <div class="stat-item">✅ Ganados: <strong id="statGanados">0</strong></div>
+            </div>
+            
+            <div class="kanban-board" id="kanbanBoard"></div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            'use strict';
+            
+            if (typeof window.supabase === 'undefined') {
+                alert('Error: No se pudo cargar Supabase.');
+                window.location.href = 'index.html';
+                return;
+            }
+            
+            const SUPABASE_URL = 'https://fipcubgwvqabwpplpkvx.supabase.co';
+            const SUPABASE_KEY = 'sb_publishable_zaAj4M7TFUD2eTvrBl9jRA_nlRHjxCp';
+            const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            
+            let currentTenantId = null;
+            let currentUserId = null;
+            let allCompanies = [];
+            
+            const etapas = [
+                { id: 'prospecto', nombre: 'Prospecto', color: '#A0AEC0' },
+                { id: 'contactado', nombre: 'Contactado', color: '#4A90E2' },
+                { id: 'reunion_agendada', nombre: 'Reunión Agendada', color: '#50E3C2' },
+                { id: 'cotizacion_enviada', nombre: 'Cotización Enviada', color: '#DD6B20' },
+                { id: 'negociacion', nombre: 'Negociación', color: '#805AD5' },
+                { id: 'ganado', nombre: 'Ganado ✅', color: '#38A169' },
+                { id: 'perdido', nombre: 'Perdido/No Ahora', color: '#E53E3E' }
+            ];
+            
+            supabaseClient.auth.getSession().then(async ({ data: { session } }) => {
+                if (!session) {
+                    window.location.href = 'index.html';
+                } else {
+                    await loadUserProfile();
+                    await loadCompanies();
+                    renderKanban();
+                }
+            });
+            
+            async function loadUserProfile() {
+                try {
+                    const { data: { user } } = await supabaseClient.auth.getUser();
+                    currentUserId = user.id;
+                    const { data: profile } = await supabaseClient
+                        .from('profiles')
+                        .select('*')
+                        .eq('id', user.id)
+                        .single();
+                    
+                    if (profile) {
+                        document.getElementById('userName').textContent = profile.nombre_completo;
+                        document.getElementById('userRole').textContent = profile.rol;
+                        document.getElementById('userAvatar').textContent = profile.nombre_completo.charAt(0).toUpperCase();
+                        currentTenantId = profile.id_tenant;
+                    }
+                } catch (error) {
+                    console.error('Error cargando perfil:', error);
+                }
+            }
+            
+            async function loadCompanies() {
+                try {
+                    const { data: companies, error } = await supabaseClient
+                        .from('companies')
+                        .select('*')
+                        .eq('id_tenant', currentTenantId)
+                        .order('fecha_creacion', { ascending: false });
+                    
+                    if (error) throw error;
+                    allCompanies = companies || [];
+                    updateStats();
+                } catch (error) {
+                    console.error('Error cargando empresas:', error);
+                }
+            }
+            
+            function updateStats() {
+                const total = allCompanies.length;
+                const valorTotal = allCompanies.reduce((sum, c) => sum + (c.valor_estimado || 0), 0);
+                const ganados = allCompanies.filter(c => c.etapa_pipeline === 'ganado').length;
+                
+                document.getElementById('statTotal').textContent = total;
+                document.getElementById('statValor').textContent = 'S/ ' + valorTotal.toFixed(2);
+                document.getElementById('statGanados').textContent = ganados;
+            }
+            
+            function renderKanban() {
+                const board = document.getElementById('kanbanBoard');
+                board.innerHTML = '';
+                
+                etapas.forEach(etapa => {
+                    const column = document.createElement('div');
+                    column.className = 'kanban-column';
+                    column.dataset.etapa = etapa.id;
+                    
+                    const companiesInStage = allCompanies.filter(c => c.etapa_pipeline === etapa.id);
+                    
+                    let html = '<div class="kanban-column-header">';
+                    html += '<span style="color:' + etapa.color + ';">' + etapa.nombre + '</span>';
+                    html += '<span class="kanban-column-count">' + companiesInStage.length + '</span>';
+                    html += '</div>';
+                    
+                    if (companiesInStage.length === 0) {
+                        html += '<div class="empty-column">Sin oportunidades</div>';
+                    } else {
+                        companiesInStage.forEach(c => {
+                            html += '<div class="kanban-card" draggable="true" data-id="' + c.id + '" style="border-left-color:' + etapa.color + ';">';
+                            html += '<div class="kanban-card-title">' + (c.nombre_fantasia || c.razon_social) + '</div>';
+                            html += '<div class="kanban-card-meta">' + c.razon_social + '</div>';
+                            html += '<div class="kanban-card-value">S/ ' + (c.valor_estimado || 0).toFixed(2) + '</div>';
+                            html += '</div>';
+                        });
+                    }
+                    
+                    column.innerHTML = html;
+                    board.appendChild(column);
+                    
+                    // Drag and drop events
+                    column.addEventListener('dragover', handleDragOver);
+                    column.addEventListener('dragleave', handleDragLeave);
+                    column.addEventListener('drop', handleDrop);
+                });
+                
+                // Add drag events to cards
+                document.querySelectorAll('.kanban-card').forEach(card => {
+                    card.addEventListener('dragstart', handleDragStart);
+                    card.addEventListener('dragend', handleDragEnd);
+                });
+            }
+            
+            let draggedCardId = null;
+            
+            function handleDragStart(e) {
+                draggedCardId = this.dataset.id;
+                this.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+            }
+            
+            function handleDragEnd(e) {
+                this.classList.remove('dragging');
+                document.querySelectorAll('.kanban-column').forEach(col => col.classList.remove('drag-over'));
+            }
+            
+            function handleDragOver(e) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                this.classList.add('drag-over');
+            }
+            
+            function handleDragLeave(e) {
+                this.classList.remove('drag-over');
+            }
+            
+            async function handleDrop(e) {
+                e.preventDefault();
+                this.classList.remove('drag-over');
+                
+                const newEtapa = this.dataset.etapa;
+                
+                if (!draggedCardId || !newEtapa) return;
+                
+                try {
+                    const { error } = await supabaseClient
+                        .from('companies')
+                        .update({ etapa_pipeline: newEtapa, fecha_actualizacion: new Date().toISOString() })
+                        .eq('id', draggedCardId);
+                    
+                    if (error) throw error;
+                    
+                    await loadCompanies();
+                    renderKanban();
+                    
+                    console.log('✅ Movido a:', newEtapa);
+                } catch (error) {
+                    alert('❌ Error al mover: ' + error.message);
+                }
+                
+                draggedCardId = null;
+            }
+            
+            window.logout = async function() {
+                await supabaseClient.auth.signOut();
+                localStorage.removeItem('kinetio_user');
+                window.location.href = 'index.html';
+            };
+        })();
+    </script>
+</body>
+</html>
